@@ -1,0 +1,11 @@
+{
+  "name": "week1_test01",
+  "version": "1.0.0",
+  "description": "Initial",
+  "main": "index.js",
+  "scripts": {
+    "nodemon": "node index.js"
+  },
+  "author": "vinay",
+  "license": "ISC"
+}
