@@ -12,7 +12,7 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 
-exports.getToken = function(user){
+exports.getToken = function (user) {
     return jwt.sign(user, key, {
         expiresIn: 3600
     })
@@ -27,7 +27,7 @@ exports.jwtPassport = passport.use(new jwtStrategy(opts, (jwt_payload, done) => 
     console.log('PayLoad: ', jwt_payload);
     User.findById(jwt_payload._id)
         .then(user => {
-            if(user)
+            if (user)
                 return done(null, user);
             return done(null, false);
         })

@@ -17,8 +17,9 @@ const commentSchema = new Schema(
             type: String,
             required: true
         },
-        auther: {
-            type: String,
+        author: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
             required: true
         }
     },
@@ -40,7 +41,7 @@ const dishSchema = new Schema(
         },
         image: {
             type: String,
-            required: true
+            default: ""
         },
         category: {
             type: String,
@@ -59,7 +60,7 @@ const dishSchema = new Schema(
             type: Boolean,
             default: false
         },
-        comments: [ commentSchema ]
+        comments: [commentSchema]
     },
     {
         timestamps: true

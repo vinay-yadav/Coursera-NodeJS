@@ -41,6 +41,9 @@ app.use('/dishes', dishes);
 app.use('/promotions', promotions);
 app.use('/leaders', leaders);
 
+// error handler
+app.use((err, req, res, next) => res.status(err.status || 500).json(err.message));
+
 
 app.listen(
     port,
