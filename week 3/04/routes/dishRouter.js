@@ -22,7 +22,7 @@ router.get('/', (req, res) => {
 });
 
 
-router.post('/', authenticate.verifyUser, (req, res) => {
+router.post('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dish.create(req.body)
         .then(dish => {
             if (dish)
@@ -30,20 +30,23 @@ router.post('/', authenticate.verifyUser, (req, res) => {
             else
                 res.status(400).json({err: 'faulty process'});
         })
-        .catch(err => console.log('error in creating dish: ' + err));
+        .catch(err => next(err));
 })
 
-router.put('/', authenticate.verifyUser, (req, res) => {
-    res.status(403).json({err: 'PUT operation not supported on /dishes'});
+router.put('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+    let err = new Error('PUT operation not supported on /dishes');
+    err.status = 400;
+    next(err);
 });
 
-router.delete('/', authenticate.verifyUser, (req, res) => {
-    res.json({success: 'Deleting all dishes'});
+router.delete('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+    Dish.remove()
+        .then(resp => res.json(resp))
+        .catch(err => next(err));
 })
 
 
 router.get('/:dishId', (req, res, next) => {
-    // res.end('Will send the details of the dish: ' + req.params.dishId + ' to you.');
     Dish.findById(req.params.dishId)
         .sort("-updatedAt")
         .populate('comments.author', ['username', 'firstName', 'lastName'])
@@ -60,11 +63,13 @@ router.get('/:dishId', (req, res, next) => {
 });
 
 
-router.post('/:dishId', authenticate.verifyUser, (req, res) => {
-    res.status(403).json({err: 'POST operation not supported on /dishes/' + req.params.dishId});
+router.post('/:dishId', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+    let err = new Error('POST operation not supported on /dishes/' + req.params.dishId);
+    err.status = 400;
+    next(err);
 })
 
-router.put('/:dishId', authenticate.verifyUser, (req, res) => {
+router.put('/:dishId', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dish.findByIdAndUpdate(
         req.params.dishId,
         {$set: req.body},
@@ -73,32 +78,35 @@ router.put('/:dishId', authenticate.verifyUser, (req, res) => {
         .then(dish => {
             if (dish)
                 res.json({updatedDish: dish});
-            else
-                res.status(404).json({err: "Dish not found"})
+            else {
+                let err = new Error("Dish not found");
+                err.status = 400;
+                next(err);
+            }
         })
-        .catch(err => console.log('error in updating dish: ' + err));
+        .catch(err => next(err));
 })
 
-router.delete('/:dishId', authenticate.verifyUser, (req, res) => {
+router.delete('/:dishId', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dish.findByIdAndDelete(req.params.dishId)
         .then(resp => {
             res.json(resp);
         })
-        .catch(err => console.log('error in deleting a dish: ' + err));
+        .catch(err => next(err));
 })
 
 
-router.get('/:dishId/comments', (req, res) => {
+router.get('/:dishId/comments', (req, res, next) => {
     Dish.findById(req.params.dishId)
         .sort("-updatedAt")
         .populate('comments.author', ['username', 'firstName', 'lastName'])
         .then(dish => {
             res.json(dish.comments);
         })
-        .catch(err => res.status(400).json({err: `error in getting dish: ${err}`}))
+        .catch(err => next(err));
 })
 
-router.post('/:dishId/comments', authenticate.verifyUser, (req, res) => {
+router.post('/:dishId/comments', authenticate.verifyUser, (req, res, next) => {
     Dish.findById(req.params.dishId)
         .then(dish => {
             req.body.author = req.user.id;
@@ -110,83 +118,119 @@ router.post('/:dishId/comments', authenticate.verifyUser, (req, res) => {
                         .sort("-dish.comments.updatedAt")
                         .populate('comments.author', ['username', 'firstName', 'lastName'])
                         .then(dish => res.json(dish.comments))
-                        .catch(err => res.status(500).json({err: `error in saving comment: ${err}`}))
+                        .catch(err => next(err));
                 })
-                .catch(err => res.status(400).json({err: `error in saving comment: ${err}`}))
+                .catch(err => next(err));
         })
-        .catch(err => res.status(400).json({err: `error in getting dish: ${err}`}))
+        .catch(err => next(err));
 })
 
 
-router.delete('/:dishId/comments', authenticate.verifyUser, (req, res) => {
+router.delete('/:dishId/comments', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dish.findById(req.params.dishId)
         .then(dish => {
             dish.comments = [];
             dish.save()
                 .then(dish => res.json(dish))
-                .catch(err => res.status(400).json({err: `error in saving comment: ${err}`}))
+                .catch(err => next(err));
         })
-        .catch(err => res.status(400).json({err: `error in getting dish: ${err}`}))
+        .catch(err => next(err));
 })
 
 
-router.get('/:dishId/comments/:commentId', (req, res) => {
+router.get('/:dishId/comments/:commentId', (req, res, next) => {
     Dish.findById(req.params.dishId)
         .sort("-updatedAt")
         .populate('comments.author', ['username', 'firstName', 'lastName'])
         .then(dish => {
             if (dish.comments.id(req.params.commentId) != null)
                 res.json(dish.comments.id(req.params.commentId));
-            else
-                res.json('comment does not exists');
-        })
-        .catch(err => res.status(400).json({err: `error in getting dish: ${err}`}))
-})
-
-
-router.put('/:dishId/comments/:commentId', authenticate.verifyUser, (req, res) => {
-    Dish.findById(req.params.dishId)
-        .then(dish => {
-            if (dish.comments.id(req.params.commentId) != null) {
-                if (req.body.rating)
-                    dish.comments.id(req.params.commentId).rating = req.body.rating;
-                if (req.body.comment)
-                    dish.comments.id(req.params.commentId).comment = req.body.comment;
-
-                dish.save()
-                    .then(dish => {
-                        Dish.findById(dish._id)
-                            .populate('comments.author', ['username', 'firstName', 'lastName'])
-                            .then(dish => res.json(dish))
-                            .catch(err => res.json('error in updating comment'));
-
-                    })
-                    .catch(err => res.json('error in updating comment'));
-            } else
-                res.json('comment does not exists');
-        })
-        .catch(err => res.status(400).json({err: `error in getting dish: ${err}`}))
-})
-
-
-router.delete('/:dishId/comments/:commentId', authenticate.verifyUser, (req, res) => {
-    Dish.findById(req.params.dishId)
-        .then(dish => {
-            if (dish.comments != null && dish.comments.id(req.params.commentId) != null) {
-                dish.comments.id(req.params.commentId).remove();
-                dish.save()
-                    .then(dish => {
-                        Dish.findById(dish._id)
-                            .populate('comments.author', ['username', 'firstName', 'lastName'])
-                            .then(dish => res.json(dish))
-                            .catch(err => res.json('error in deleting comment'));
-                    })
-                    .catch(err => res.json('error in deleting comment'));
-            } else {
-                res.json('comment does not exists')
+            else {
+                let err = new Error('Comment does not exists');
+                err.status = 400;
+                next(err);
             }
         })
-        .catch(err => res.status(400).json({err: `error in getting dish: ${err}`}))
+        .catch(err => next(err));
+})
+
+
+router.put('/:dishId/comments/:commentId', authenticate.verifyUser, (req, res, next) => {
+    Dish.findById(req.params.dishId)
+        .then(dish => {
+            if (dish){
+                const dishComment = dish.comments.id(req.params.commentId);
+
+                if (dish.comments != null && dishComment != null) {
+                    if (req.user.id == dishComment.author) {
+                        if (req.body.rating)
+                            dishComment.rating = req.body.rating;
+                        if (req.body.comment)
+                            dishComment.comment = req.body.comment;
+
+                        dish.save()
+                            .then(dish => {
+                                Dish.findById(dish._id)
+                                    .populate('comments.author', ['username', 'firstName', 'lastName'])
+                                    .then(dish => res.json(dish))
+                                    .catch(err => next(err));
+
+                            })
+                            .catch(err => next(err));
+                    }else{
+                        let err = new Error('You are not authorized to perform this operation');
+                        err.status = 403;
+                        next(err);
+                    }
+                } else {
+                    let err = new Error('Comment does not exists');
+                    err.status = 400;
+                    next(err);
+                }
+            }else{
+                let err = new Error('Dish does not exists');
+                err.status = 400;
+                next(err);
+            }
+        })
+        .catch(err => next(err));
+})
+
+
+router.delete('/:dishId/comments/:commentId', authenticate.verifyUser, (req, res, next) => {
+    Dish.findById(req.params.dishId)
+        .then(dish => {
+            if (dish) {
+                const dishComment = dish.comments.id(req.params.commentId);
+                if (dish.comments != null && dishComment != null) {
+                    if (req.user.id == dishComment.author) {
+                        dish.comments.id(req.params.commentId).remove();
+                        dish.save()
+                            .then(dish => {
+                                Dish.findById(dish._id)
+                                    .populate('comments.author', ['username', 'firstName', 'lastName'])
+                                    .then(dish => res.json(dish))
+                                    .catch(err => next(err));
+                            })
+                            .catch(err => next(err));
+                    } else {
+                        let err = new Error('You are not authorized to perform this task');
+                        err.status = 403;
+                        next(err);
+                    }
+                } else {
+                    let err = new Error('Comment does not exits');
+                    err.status = 400;
+                    next(err);
+                }
+
+            } else {
+                let err = new Error('Dish does not exits');
+                err.status = 400;
+                next(err);
+            }
+        })
+        .catch(err => next(err));
 })
 
 

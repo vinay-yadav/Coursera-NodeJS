@@ -8,8 +8,10 @@ const authenticate = require('../authenticate');
 router.use(bodyParser.json());
 
 /* GET users listing. */
-router.get('/', function (req, res, next) {
-    res.send('respond with a resource');
+router.get('/', authenticate.verifyUser, authenticate.verifyAdmin, function (req, res, next) {
+    User.find()
+        .then(users => res.json(users))
+        .catch(err => next(err));
 });
 
 router.post('/sign-up', (req, res, next) => {
@@ -21,8 +23,8 @@ router.post('/sign-up', (req, res, next) => {
                 return res.status(500).json({err: err})
 
             if (user) {
-                if (req.body.admin)
-                    user.admin = req.body.admin;
+                // if (req.body.admin)
+                //     user.admin = req.body.admin;
                 if (req.body.firstName)
                     user.firstName = req.body.firstName;
                 if (req.body.lastName)
@@ -43,7 +45,7 @@ router.post('/sign-up', (req, res, next) => {
 
 router.post('/login', passport.authenticate('local'), (req, res) => {
     const token = authenticate.getToken({_id: req.user._id});
-    res.json({success: 'login successful', token: token});
+    res.json({success: 'login successful', token: `Bearer ${token}`});
 })
 
 router.get('/logout', (req, res) => {
