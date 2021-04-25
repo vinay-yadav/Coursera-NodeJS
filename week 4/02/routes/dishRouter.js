@@ -2,48 +2,57 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const authenticate = require('../authenticate');
 const Dish = require('../models/Dish');
+const cors = require('./cors');
 
 const router = express.Router();
 
 router.use(bodyParser.json());
 
 
-router.get('/', (req, res) => {
-    Dish.find()
-        .sort('-updatedAt')
-        .populate('comments.author', ['username', 'firstName', 'lastName'])
-        .then(dishes => {
-            if (dishes)
-                res.json(dishes);
-            else
-                res.status(404).json({err: 'No dishes'});
-        })
-        .catch(err => console.log('error in getting dishes: ' + err));
-});
+router
+    .options(cors.corsWithOptions, (req, res) => { res.sendStatus(200); })
+    .get('/', cors.cors, (req, res) => {
+        Dish.find()
+            .sort('-updatedAt')
+            .populate('comments.author', ['username', 'firstName', 'lastName'])
+            .then(dishes => {
+                if (dishes)
+                    res.json(dishes);
+                else
+                    res.status(404).json({err: 'No dishes'});
+            })
+            .catch(err => console.log('error in getting dishes: ' + err));
+    });
 
 
-router.post('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
-    Dish.create(req.body)
-        .then(dish => {
-            if (dish)
-                res.json(dish);
-            else
-                res.status(400).json({err: 'faulty process'});
-        })
-        .catch(err => next(err));
-})
+router
+    .options(cors.corsWithOptions, (req, res) => { res.sendStatus(200); })
+    .post('/', cors.corsWithOptions, authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+        Dish.create(req.body)
+            .then(dish => {
+                if (dish)
+                    res.json(dish);
+                else
+                    res.status(400).json({err: 'faulty process'});
+            })
+            .catch(err => next(err));
+    })
 
-router.put('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
-    let err = new Error('PUT operation not supported on /dishes');
-    err.status = 400;
-    next(err);
-});
+router
+    .options(cors.corsWithOptions, (req, res) => { res.sendStatus(200); })
+    .put('/', cors.corsWithOptions, authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+        let err = new Error('PUT operation not supported on /dishes');
+        err.status = 400;
+        next(err);
+    });
 
-router.delete('/', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
-    Dish.remove()
-        .then(resp => res.json(resp))
-        .catch(err => next(err));
-})
+router
+    .options(cors.corsWithOptions, (req, res) => { res.sendStatus(200); })
+    .delete('/', cors.corsWithOptions, authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+        Dish.remove()
+            .then(resp => res.json(resp))
+            .catch(err => next(err));
+    })
 
 
 router.get('/:dishId', (req, res, next) => {
@@ -87,13 +96,15 @@ router.put('/:dishId', authenticate.verifyUser, authenticate.verifyAdmin, (req, 
         .catch(err => next(err));
 })
 
-router.delete('/:dishId', authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
-    Dish.findByIdAndDelete(req.params.dishId)
-        .then(resp => {
-            res.json(resp);
-        })
-        .catch(err => next(err));
-})
+router
+    .options(cors.corsWithOptions, (req, res) => { res.sendStatus(200); })
+    .delete('/:dishId', cors.corsWithOptions, authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
+        Dish.findByIdAndDelete(req.params.dishId)
+            .then(resp => {
+                res.json(resp);
+            })
+            .catch(err => next(err));
+    })
 
 
 router.get('/:dishId/comments', (req, res, next) => {

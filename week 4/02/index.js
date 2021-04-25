@@ -15,7 +15,8 @@ const usersRouter = require('./routes/users');
 const dishes = require("./routes/dishRouter");
 const promotions = require("./routes/promotionRouter");
 const leaders = require("./routes/leaderRouter");
-const upload = require("./routes/uploadRouter");
+const uploads = require("./routes/uploadRouter");
+const favourites = require("./routes/favouriteRouter");
 
 const dbUrl = require('./config').mongoUrl;
 
@@ -41,7 +42,8 @@ app.use('/users', usersRouter);
 app.use('/dishes', dishes);
 app.use('/promotions', promotions);
 app.use('/leaders', leaders);
-app.use('/upload', upload);
+app.use('/upload', uploads);
+app.use('/favourites', favourites);
 
 // error handler
 app.use((err, req, res, next) => res.status(err.status || 500).json(err.message));
